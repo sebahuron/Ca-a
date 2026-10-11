@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎣 Juego de Pesca</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
+        body { 
+            background: linear-gradient(180deg, #87CEEB 0%, #1E90FF 50%, #006994 100%);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Actualización */
+        .aviso {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            display: none; align-items: center; justify-content: center;
+            z-index: 9999; padding: 20px;
+        }
+        .aviso-caja {
+            background: white; padding: 30px; border-radius: 16px; text-align: center;
+            max-width: 320px;
+        }
+        .aviso-caja button {
+            padding: 12px 20px; margin: 5px; border: none; border-radius: 8px;
+            font-size: 16px; cursor: pointer;
+        }
+        .btn-actualizar { background: #006994; color: white; }
+        .btn-tarde { background: #ddd; }
+
+        /* Interfaz */
+        .arriba {
+            position: absolute; top: 10px; left: 10px; right: 10px;
+            display: flex; justify-content: space-between; gap: 5px;
+        }
+        .caja {
+            background: rgba(255,255,255,0.9); padding: 8px 12px;
+            border-radius: 10px; font-weight: bold; font-size: 14px;
+        }
+
+        /* Caña y agua */
+        .caña {
+            position: absolute; top: 20%; left: 50%;
+            font-size: 50px; transform: translateX(-50%);
+            transition: top 0.4s ease; z-index: 10;
+        }
+        .agua {
+            position: absolute; bottom: 0; width: 100%; height: 70%;
+            background: linear-gradient(180deg, rgba(0,105,148,0.5) 0%, #004563 100%);
+            border-radius: 40px 40px 0 0;
+        }
+        .zona-peces {
+            position: absolute; bottom: 5%; width: 100%; height: 65%;
+        }
+        .pez {
+            position: absolute; font-size: 40px; cursor: pointer;
+            transition: transform 0.15s;
+        }
+        .pez:active { transform: scale(1.4); }
+
+        /* Botones */
+        .botones {
+            position: absolute; bottom: 25px; left: 0; right: 0;
+            display: flex; justify-content: center; gap: 15px;
+        }
+        .boton {
+            border: none; border-radius: 50%; width: 75px; height: 75px;
+            font-size: 13px; font-weight: bold; color: white;
+            cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        .boton:active { transform: scale(0.95); }
+        .lanzar { background: #006994; }
+        .tienda { background: #FF9900; }
+        .ranking { background: #228B22; }
+
+        /* Paneles */
+        .panel {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: white; padding: 25px; border-radius: 20px;
+            width: 90%; max-width: 340px; z-index: 100;
+            display: none; max-height: 80vh; overflow-y: auto;
+        }
+        .cerrar {
+            position: absolute; top: 10px; right: 15px;
+            font-size: 24px; cursor: pointer; color: #888;
+        }
+        .fila {
+            padding: 12px 0; border-bottom: 1px solid #eee;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .btn-comprar {
+            background: #FF9900; color: white; border: none;
+            padding: 8px 12px; border-radius: 6px; cursor: pointer;
+        }
+        .btn-comprar:disabled { background: #ccc; cursor: not-allowed; }
+
+        /* Mensaje */
+        .msg {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8); color: white;
+            padding: 20px 30px; border-radius: 12px;
+            font-size: 18px; display: none; z-index: 50;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Actualización -->
+<div class="aviso" id="aviso">
+    <div class="aviso-caja">
+        <h3>🔄 Actualización Disponible</h3>
+        <p>Descarga la versión nueva</p>
+        <button class="btn-actualizar" onclick="actualizar()">Actualizar</button>
+        <button class="btn-tarde" onclick="cerrarAviso()">Más tarde</button>
+    </div>
+</div>
+
+<!-- Arriba -->
+<div class="arriba">
+    <div class="caja">Nivel: <span id="nivel">1</span></div>
+    <div class="caja">💰 <span id="monedas">30</span></div>
+    <div class="caja">🐟 <span id="cantidad">0</span></div>
+</div>
+
+<!-- Juego -->
+<div class="caña" id="caña">🎣</div>
+<div class="agua"></div>
+<div class="zona-peces" id="zonaPeces"></div>
+
+<!-- Botones -->
+<div class="botones">
+    <button class="boton lanzar" onclick="lanzar()">LANZAR</button>
+    <button class="boton tienda" onclick="abrirTienda()">🛒</button>
+    <button class="boton ranking" onclick="abrirRanking()">🏆</button>
+</div>
+
+<!-- Paneles -->
+<div class="panel" id="panelTienda">
+    <span class="cerrar" onclick="cerrarPanel('panelTienda')">&times;</span>
+    <h2 style="text-align:center; margin-bottom:15px;">🛒 Tienda</h2>
+    <div id="contenidoTienda"></div>
+</div>
+
+<div class="panel" id="panelRanking">
+    <span class="cerrar" onclick="cerrarPanel('panelRanking')">&times;</span>
+    <h2 style="text-align:center; margin-bottom:15px;">🏆 Ranking</h2>
+    <div id="contenidoRanking"></div>
+</div>
+
+<div class="msg" id="mensaje"></div>
+
+<script>
+// === ACTUALIZACIÓN ===
+const APK_URL = "https://github.com/sebahuron/M-cocina/archive/refs/heads/main/M-cocina.apk";
+const VERSION = "1.0.1"; // Aumentá este número cuando cambies algo
+
+function actualizar() {
+    window.open(APK_URL, '_blank');
+    cerrarAviso();
+}
+function cerrarAviso() {
+    document.getElementById('aviso').style.display = 'none';
+}
+// Simulación de chequeo
+setTimeout(() => {
+    const guardada = localStorage.getItem('versionApp') || "1.0.0";
+    if (guardada < VERSION) {
+        localStorage.setItem('versionApp', VERSION);
+    } else if (guardada !== VERSION) {
+        document.getElementById('aviso').style.display = 'flex';
+    }
+}, 2000);
+
+// === DATOS ===
+let datos = {
+    monedas: 30,
+    nivel: 1,
+    capturados: 0,
+    exp: 0,
+    mejoras: { caña: 1, suerte: 1 },
+    comprados: []
+};
+
+const peces = [
+    { emoji: '🐟', nombre: 'Común', valor: 5, exp: 3 },
+    { emoji: '🐠', nombre: 'Tropical', valor: 15, exp: 8 },
+    { emoji: '🐡', nombre: 'Globo', valor: 20, exp: 10 },
+    { emoji: '🦈', nombre: 'Tiburón', valor: 60, exp: 30 },
+    { emoji: '🐋', nombre: 'Ballena', valor: 250, exp: 80 }
+];
+
+const tienda = [
+    { id: 'caña2', nombre: 'Caña Fuerte', precio: 80, tipo: 'caña', valor: 2 },
+    { id: 'suerte2', nombre: 'Amuleto', precio: 150, tipo: 'suerte', valor: 2 },
+    { id: 'caña3', nombre: 'Caña Pro', precio: 500, tipo: 'caña', valor: 3 },
+    { id: 'suerte3', nombre: 'Doble Suerte', precio: 800, tipo: 'suerte', valor: 3 }
+];
+
+// === JUEGO ===
+function lanzar() {
+    const caña = document.getElementById('caña');
+    caña.style.top = '55%';
+    setTimeout(() => {
+        caña.style.top = '20%';
+        crearPez();
+    }, 700);
+}
+
+function crearPez() {
+    const zona = document.getElementById('zonaPeces');
+    const suerte = datos.mejoras.suerte;
+    let indice = 0;
+    
+    // Peces mejores según suerte
+    const azar = Math.random() + (suerte - 1) * 0.12;
+    if (azar > 0.97) indice = 4;
+    else if (azar > 0.90) indice = 3;
+    else if (azar > 0.75) indice = 2;
+    else if (azar > 0.50) indice = 1;
+    
+    const pez = peces[indice];
+    const div = document.createElement('div');
+    div.className = 'pez';
+    div.textContent = pez.emoji;
+    div.style.left = (5 + Math.random() * 85) + '%';
+    div.style.top = (5 + Math.random() * 55) + '%';
+    div.dataset.valor = pez.valor;
+    div.dataset.exp = pez.exp;
+    div.dataset.nombre = pez.nombre;
+    
+    div.onclick = function() { atrapar(this); };
+    zona.appendChild(div);
+    
+    // Desaparece
+    setTimeout(() => div.remove(), 3500);
+}
+
+function atrapar(el) {
+    const valor = parseInt(el.dataset.valor);
+    const exp = parseInt(el.dataset.exp);
+    const nombre = el.dataset.nombre;
+    const bonus = 1 + (datos.mejoras.caña - 1) * 0.1;
+    
+    datos.monedas += Math.floor(valor * bonus);
+    datos.exp += exp;
+    datos.capturados++;
+    
+    // Subir nivel
+    const expNecesaria = datos.nivel * 40;
+    if (datos.exp >= expNecesaria) {
+        datos.nivel++;
+        datos.exp = 0;
+        mostrarMsg('🎉 ¡Nivel ' + datos.nivel + '!');
+    } else {
+        mostrarMsg('+' + Math.floor(valor * bonus) + ' 💰 ' + nombre);
+    }
+    
+    el.remove();
+    actualizarPantalla();
+    guardar();
+}
+
+function mostrarMsg(texto) {
+    const m = document.getElementById('mensaje');
+    m.textContent = texto;
+    m.style.display = 'block';
+    setTimeout(() => m.style.display = 'none', 1400);
+}
+
+function actualizarPantalla() {
+    document.getElementById('monedas').textContent = datos.monedas;
+    document.getElementById('nivel').textContent = datos.nivel;
+    document.getElementById('cantidad').textContent = datos.capturados;
+}
+
+// === TIENDA ===
+function abrirTienda() {
+    const cont = document.getElementById('contenidoTienda');
+    cont.innerHTML = '';
+    
+    tienda.forEach(item => {
+        const comprado = datos.comprados.includes(item.id);
+        const div = document.createElement('div');
+        div.className = 'fila';
+        div.innerHTML = `
+            <span><strong>${item.nombre}</strong></span>
+            <button class="btn-comprar" ${datos.monedas < item.precio || comprado ? 'disabled' : ''}
+                onclick="comprar('${item.id}', ${item.precio}, '${item.tipo}', ${item.valor})">
+                ${comprado ? '✅' : item.precio + ' 💰'}
+            </button>
+        `;
+        cont.appendChild(div);
+    });
+    
+    document.getElementById('panelTienda').style.display = 'block';
+}
+
+function comprar(id, precio, tipo, valor) {
+    if (datos.monedas >= precio && !datos.comprados.includes(id)) {
+        datos.monedas -= precio;
+        datos.comprados.push(id);
+        datos.mejoras[tipo] = valor;
+        mostrarMsg('✅ Comprado!');
+        actualizarPantalla();
+        guardar();
+        abrirTienda();
+    }
+}
+
+// === RANKING ===
+function abrirRanking() {
+    const cont = document.getElementById('contenidoRanking');
+    const lista = [
+        { nombre: 'Tú', pescas: datos.capturados, nivel: datos.nivel },
+        { nombre: 'Ana', pescas: Math.floor(Math.random() * 50 + 20), nivel: 5 },
+        { nombre: 'Luis', pescas: Math.floor(Math.random() * 40 + 15), nivel: 4 },
+        { nombre: 'Marta', pescas: Math.floor(Math.random() * 30 + 10), nivel: 3 }
+    ];
+    lista.sort((a, b) => b.pescas - a.pescas);
+    
+    cont.innerHTML = '';
+    lista.forEach((p, i) => {
+        const div = document.createElement('div');
+        div.className = 'fila';
+        div.innerHTML = `<strong>${i+1}º</strong> ${p.nombre} | 🐟${p.pescas} | Nv.${p.nivel}`;
+        cont.appendChild(div);
+    });
+    
+    document.getElementById('panelRanking').style.display = 'block';
+}
+
+function cerrarPanel(id) {
+    document.getElementById(id).style.display = 'none';
+}
+
+// === GUARDADO ===
+function guardar() {
+    localStorage.setItem('pescaDatos', JSON.stringify(datos));
+}
+function cargar() {
+    const g = localStorage.getItem('pescaDatos');
+    if (g) datos = { ...datos, ...JSON.parse(g) };
+    actualizarPantalla();
+}
+
+// Aparecen peces solos
+setInterval(() => {
+    if (Math.random() < 0.35) crearPez();
+}, 2000);
+
+// Iniciar
+cargar();
+</script>
+</body>
+</html>
